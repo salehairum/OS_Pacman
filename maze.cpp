@@ -1,16 +1,25 @@
 #include <GL/freeglut.h>
 #include <iostream>
+#include <cmath>
 
-// width height of screen 
 const int width = 800;
 const int height = 600;
+
+int xPos = 300;
+int yPos = 300;
+
+GLfloat xwcMin = 0.0, xwcMax = 800.0;
+GLfloat ywcMin = 0.0, ywcMax = 600.0;
+
 const int rows = 39;
 const int cols = 32;
-//based on  number of rows and cols, cell width/height (in grid)
 const float cellWidth = (float)width / cols;
 const float cellHeight = (float)height / rows;
 
-//maze: 1 indicates wall(it is blue)
+int tick = 0;
+int direction = 0;
+const int REFRESH_MS = 5;
+
 bool maze[rows][cols] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
@@ -53,7 +62,67 @@ bool maze[rows][cols] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
-//iterate through "maze" function to display maze 
+void arrowFunc(int key, int x, int y) {
+    switch (key) {
+    case GLUT_KEY_UP:
+        direction = 3;
+        break;
+    case GLUT_KEY_DOWN:
+        direction = 1;
+        break;
+    case GLUT_KEY_LEFT:
+        direction = 2;
+        break;
+    case GLUT_KEY_RIGHT:
+        direction = 0;
+        break;
+    }
+}
+
+void updatePos(int direction) {
+    const int SPEED = 3;
+    switch (direction) {
+    case 0:
+        if (xPos < xwcMax + 2 )
+            xPos += SPEED;
+        break;
+    case 1:
+        if (yPos > -2 )
+            yPos -= SPEED;
+        break;
+    case 2:
+        if (xPos > -2 )
+            xPos -= SPEED;
+        break;
+    case 3:
+        if (yPos < ywcMax + 2)
+            yPos += SPEED;
+        break;
+    };
+}
+
+void pacMan(int direction) {
+    int r = 20;
+
+    glPushMatrix();
+    while (direction--) {
+        glRotatef(90, 0, 0, -1);
+    }
+    glColor3f(1, 1, 0);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(0, 0);
+    int detail = 30;
+    int startPoint = 15 * sin(tick / 15);
+    for (int i = 0; i < detail; i++) {
+        double deg = (i * (360 - 2 * startPoint) / detail) + startPoint;
+        double x = r * cos(deg * 3.14 / 180);
+        double y = r * sin(deg * 3.14 / 180);
+        glVertex2f(x, y);
+    }
+    glEnd();
+    glPopMatrix();
+}
+
 void drawMaze() {
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -74,16 +143,24 @@ void drawMaze() {
             glEnd();
         }
     }
-
     glFlush();
 }
 
-//call back display function will display maze
 void display() {
+
+    glLoadIdentity(); // Reset the transformation matrix
+
     drawMaze();
+
+    glPushMatrix();
+    glTranslatef(xPos, yPos, 0); // Translate Pac-Man to its position
+    pacMan(direction); // Draw Pac-Man
+    glPopMatrix();
+
+    glFlush();
+    glutSwapBuffers();
 }
 
-//resizw window
 void reshape(int w, int h) {
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
@@ -92,14 +169,21 @@ void reshape(int w, int h) {
     glMatrixMode(GL_MODELVIEW);
 }
 
+void timer(int value) {
+    glutPostRedisplay();      // Post re-paint request to activate display()
+    glutTimerFunc(REFRESH_MS, timer, 0); // next timer call milliseconds later
+}
+
+
 int main(int argc, char** argv) {
-//create window
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(width, height);
     glutCreateWindow("Pacman Maze");
+    glutSpecialFunc(arrowFunc);
     glutDisplayFunc(display);
-    glutReshapeFunc(reshape);
+    glutReshapeFunc(reshape);  
+    glutTimerFunc(0, timer, 0);
     glutMainLoop();
     return 0;
 }
